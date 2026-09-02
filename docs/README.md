@@ -17,6 +17,9 @@ This wiki provides a high-level view of the DevOps technical assessment solution
 3. [GitOps and Delivery Flow](03-gitops-delivery-flow.md)
 4. [Security and Access Model](04-security-access-model.md)
 5. [Operations Runbook](05-operations-runbook.md)
+6. [End-to-End Architecture Diagram](06-architecture-diagram.md)
+7. [Interview One-Pager](07-interview-one-pager.md)
+8. [Deployment Sequence Diagram](08-deployment-sequence-diagram.md)
 
 ## Source Documents (Detailed)
 

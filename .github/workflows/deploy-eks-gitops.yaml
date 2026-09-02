@@ -188,12 +188,85 @@ jobs:
           NODE_COUNT_CURRENT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
 
           if [ "$NODE_COUNT_CURRENT" -eq 0 ]; then
-            echo "No Kubernetes nodes detected. Creating managed nodegroup from cluster config..."
-            eksctl create nodegroup -f infra/eksctl/cluster-config.generated.yaml
+            DESIRED_NODES="${NODE_COUNT:-2}"
+            echo "No Kubernetes nodes detected. Reconciling managed nodegroups to desired=${DESIRED_NODES}."
+
+            NODEGROUPS=$(aws eks list-nodegroups \
+              --region "$AWS_REGION" \
+              --cluster-name "$CLUSTER_NAME" \
+              --query 'nodegroups' \
+              --output text)
+
+            if [ -z "$NODEGROUPS" ] || [ "$NODEGROUPS" = "None" ]; then
+              echo "No nodegroups exist yet. Creating from cluster config..."
+              eksctl create nodegroup -f infra/eksctl/cluster-config.generated.yaml
+              NODEGROUPS=$(aws eks list-nodegroups \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --query 'nodegroups' \
+                --output text)
+            fi
+
+            for NG in $NODEGROUPS; do
+              echo "Nodegroup diagnostics before scaling: $NG"
+              aws eks describe-nodegroup \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --nodegroup-name "$NG" \
+                --query 'nodegroup.[nodegroupName,status,scalingConfig.minSize,scalingConfig.desiredSize,scalingConfig.maxSize,health.issues]' \
+                --output table || true
+
+              CURRENT_MAX=$(aws eks describe-nodegroup \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --nodegroup-name "$NG" \
+                --query 'nodegroup.scalingConfig.maxSize' \
+                --output text)
+
+              TARGET_MAX="$CURRENT_MAX"
+              if [ "$CURRENT_MAX" -lt "$DESIRED_NODES" ]; then
+                TARGET_MAX="$DESIRED_NODES"
+              fi
+
+              aws eks update-nodegroup-config \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --nodegroup-name "$NG" \
+                --scaling-config minSize="$DESIRED_NODES",desiredSize="$DESIRED_NODES",maxSize="$TARGET_MAX"
+
+              aws eks wait nodegroup-active \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --nodegroup-name "$NG"
+            done
           fi
 
-          echo "Waiting for node readiness..."
-          kubectl wait --for=condition=Ready nodes --all --timeout=25m
+          echo "Waiting for node registration in Kubernetes..."
+          READY=0
+          for i in {1..30}; do
+            CURRENT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+            if [ "$CURRENT" -gt 0 ]; then
+              READY=1
+              break
+            fi
+            echo "No nodes registered yet (attempt $i/30), retrying in 30s..."
+            sleep 30
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "No nodes registered after waiting. Printing nodegroup diagnostics..."
+            NODEGROUPS=$(aws eks list-nodegroups --region "$AWS_REGION" --cluster-name "$CLUSTER_NAME" --query 'nodegroups' --output text)
+            for NG in $NODEGROUPS; do
+              aws eks describe-nodegroup \
+                --region "$AWS_REGION" \
+                --cluster-name "$CLUSTER_NAME" \
+                --nodegroup-name "$NG" \
+                --output json || true
+            done
+            exit 1
+          fi
+
+          kubectl wait --for=condition=Ready nodes --all --timeout=20m
           kubectl get nodes -o wide
 
       - name: Ensure ECR repository exists

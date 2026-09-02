@@ -15,6 +15,8 @@ This folder contains a complete starter solution for your assessment:
 Read **ASSIGNMENT_AWS_EKS_GUIDE.md** from top to bottom. It is written to teach you each step and the reasoning behind it.
 Then configure pipeline access in **GITHUB_SECRETS_SETUP.md**.
 
+For a high-level reviewer view, start with **docs/README.md**.
+
 ## GitOps-First Quick Start (No ClickOps)
 
 1. Copy `scripts/config.env.example` to `scripts/config.env` and set your AWS values.

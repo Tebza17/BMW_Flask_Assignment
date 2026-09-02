@@ -182,6 +182,20 @@ jobs:
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
           kubectl get nodes
 
+      - name: Reconcile nodegroup when cluster has no nodes (optional)
+        if: ${{ inputs.create_cluster == true }}
+        run: |
+          NODE_COUNT_CURRENT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+
+          if [ "$NODE_COUNT_CURRENT" -eq 0 ]; then
+            echo "No Kubernetes nodes detected. Creating managed nodegroup from cluster config..."
+            eksctl create nodegroup -f infra/eksctl/cluster-config.generated.yaml
+          fi
+
+          echo "Waiting for node readiness..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=25m
+          kubectl get nodes -o wide
+
       - name: Ensure ECR repository exists
         run: |
           aws ecr describe-repositories --repository-names "$ECR_REPOSITORY_NAME" --region "$AWS_REGION" || aws ecr create-repository --repository-name "$ECR_REPOSITORY_NAME" --region "$AWS_REGION"
@@ -231,5 +245,25 @@ jobs:
 
       - name: Verify rollout and service
         run: |
+          set +e
           kubectl rollout status deployment/${HELM_RELEASE_NAME}-flask-kafka-app -n "$K8S_NAMESPACE" --timeout=240s
+          ROLLOUT_EXIT=$?
+          set -e
+
+          if [ "$ROLLOUT_EXIT" -ne 0 ]; then
+            echo "Rollout failed. Collecting Kubernetes diagnostics..."
+            kubectl get all -n "$K8S_NAMESPACE" -o wide || true
+            kubectl get events -n "$K8S_NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -n 80 || true
+            kubectl describe deployment/${HELM_RELEASE_NAME}-flask-kafka-app -n "$K8S_NAMESPACE" || true
+
+            PODS=$(kubectl get pods -n "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$HELM_RELEASE_NAME" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || true)
+            for POD in $PODS; do
+              echo "---- describe pod: $POD ----"
+              kubectl describe pod "$POD" -n "$K8S_NAMESPACE" || true
+              echo "---- logs pod: $POD ----"
+              kubectl logs "$POD" -n "$K8S_NAMESPACE" --all-containers --tail=200 || true
+            done
+          fi
+
           kubectl get svc -n "$K8S_NAMESPACE"
+          exit "$ROLLOUT_EXIT"

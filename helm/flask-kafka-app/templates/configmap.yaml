@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "flask-kafka-app.fullname" . }}-config
+  labels:
+    {{- include "flask-kafka-app.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.config.APP_ENV | quote }}
+  KAFKA_ENABLED: {{ .Values.config.KAFKA_ENABLED | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.config.KAFKA_BOOTSTRAP_SERVERS | quote }}
+  KAFKA_TOPIC: {{ .Values.config.KAFKA_TOPIC | quote }}
+  KAFKA_GROUP_ID: {{ .Values.config.KAFKA_GROUP_ID | quote }}

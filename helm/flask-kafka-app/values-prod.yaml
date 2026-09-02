@@ -1,0 +1,22 @@
+replicaCount: 3
+
+config:
+  APP_ENV: "prod"
+  KAFKA_ENABLED: "true"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-1.example.com:9092,kafka-2.example.com:9092"
+  KAFKA_TOPIC: "prod-events"
+  KAFKA_GROUP_ID: "flask-kafka-app-prod"
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 65

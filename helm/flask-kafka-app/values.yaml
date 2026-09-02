@@ -1,0 +1,50 @@
+replicaCount: 2
+
+image:
+  repository: "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/flask-kafka-app"
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "300m"
+    memory: "256Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+config:
+  APP_ENV: "dev"
+  KAFKA_ENABLED: "false"
+  KAFKA_BOOTSTRAP_SERVERS: ""
+  KAFKA_TOPIC: "events"
+  KAFKA_GROUP_ID: "flask-kafka-app"
+
+secrets:
+  KAFKA_USERNAME: ""
+  KAFKA_PASSWORD: ""
+
+probes:
+  readiness:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  liveness:
+    path: /health
+    initialDelaySeconds: 20
+    periodSeconds: 20

@@ -1,0 +1,6 @@
+1. Get the application URL by running these commands:
+
+  export SERVICE_NAME=$(kubectl get svc --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "flask-kafka-app.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl get svc --namespace {{ .Release.Namespace }} $SERVICE_NAME
+
+2. Open /health on the external endpoint to verify readiness.

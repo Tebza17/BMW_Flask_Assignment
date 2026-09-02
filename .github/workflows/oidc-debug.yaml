@@ -32,16 +32,16 @@ jobs:
           print(decoded)
           PY
           )
-            export PAYLOAD
+          export PAYLOAD
 
           echo "OIDC issuer and key claims:"
-            python3 - <<'PY'
-            import json, os
+          python3 - <<'PY'
+          import json, os
 
-            obj = json.loads(os.environ["PAYLOAD"])
-            for key in ["iss", "aud", "sub", "job_workflow_ref", "repository", "repository_owner", "ref", "sha", "actor"]:
-              print(f"{key}: {obj.get(key)}")
-            PY
+          obj = json.loads(os.environ["PAYLOAD"])
+          for key in ["iss", "aud", "sub", "job_workflow_ref", "repository", "repository_owner", "ref", "sha", "actor"]:
+            print(f"{key}: {obj.get(key)}")
+          PY
 
       - name: Attempt STS assume role via action
         uses: aws-actions/configure-aws-credentials@v4

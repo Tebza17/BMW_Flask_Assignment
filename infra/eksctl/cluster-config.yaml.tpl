@@ -5,6 +5,9 @@ metadata:
   name: __CLUSTER_NAME__
   region: __AWS_REGION__
 
+autoModeConfig:
+  enabled: false
+
 managedNodeGroups:
   - name: primary-ng
     instanceType: __NODE_TYPE__

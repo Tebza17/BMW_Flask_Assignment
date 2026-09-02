@@ -182,6 +182,20 @@ jobs:
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
           kubectl get nodes
 
+      - name: Reconcile nodegroup when cluster has no nodes (optional)
+        if: ${{ inputs.create_cluster == true }}
+        run: |
+          NODE_COUNT_CURRENT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+
+          if [ "$NODE_COUNT_CURRENT" -eq 0 ]; then
+            echo "No Kubernetes nodes detected. Creating managed nodegroup from cluster config..."
+            eksctl create nodegroup -f infra/eksctl/cluster-config.generated.yaml
+          fi
+
+          echo "Waiting for node readiness..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=25m
+          kubectl get nodes -o wide
+
       - name: Ensure ECR repository exists
         run: |
           aws ecr describe-repositories --repository-names "$ECR_REPOSITORY_NAME" --region "$AWS_REGION" || aws ecr create-repository --repository-name "$ECR_REPOSITORY_NAME" --region "$AWS_REGION"

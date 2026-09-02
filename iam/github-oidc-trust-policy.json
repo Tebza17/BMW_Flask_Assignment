@@ -12,7 +12,11 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:Tebza17/BMW_Flask_Assignment:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:Tebza17/BMW_Flask_Assignment:ref:refs/heads/main",
+            "repo:Tebza17@*/BMW_Flask_Assignment@*:ref:refs/heads/main"
+          ],
+          "token.actions.githubusercontent.com:job_workflow_ref": "Tebza17/BMW_Flask_Assignment/.github/workflows/*@refs/heads/main"
         }
       }
     }

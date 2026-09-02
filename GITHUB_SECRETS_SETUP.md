@@ -25,6 +25,24 @@ chmod +x iam/create-oidc-role-cloudshell.sh
 
 Output includes the IAM Role ARN. Copy it to GitHub Secret `AWS_ROLE_TO_ASSUME`.
 
+## OIDC trust troubleshooting (important)
+
+Some GitHub accounts now emit a `sub` claim with numeric IDs in the owner and repo segments, for example:
+
+`repo:Tebza17@28624729/BMW_Flask_Assignment@1354820876:ref:refs/heads/main`
+
+This repository's IAM templates already allow both formats:
+
+1. `repo:<owner>/<repo>:ref:refs/heads/<branch>`
+2. `repo:<owner>@*/<repo>@*:ref:refs/heads/<branch>`
+
+If your role was created before this update, re-run the CloudShell setup command to refresh trust policy conditions:
+
+```bash
+cd BMW_Flask_Assignment
+./iam/create-oidc-role-cloudshell.sh eu-west-1 Tebza17 BMW_Flask_Assignment main github-actions-eks-deployer
+```
+
 ## Repository Secrets to create
 
 1. `AWS_ROLE_TO_ASSUME`

@@ -52,7 +52,10 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}
+                  - !Sub repo:${GitHubOrg}@*/${GitHubRepo}@*:ref:refs/heads/${GitHubBranch}
+                token.actions.githubusercontent.com:job_workflow_ref: !Sub ${GitHubOrg}/${GitHubRepo}/.github/workflows/*@refs/heads/${GitHubBranch}
 
   GitHubActionsEksPolicy:
     Type: AWS::IAM::ManagedPolicy

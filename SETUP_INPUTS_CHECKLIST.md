@@ -91,7 +91,12 @@ Use this checklist to gather all required values for secure GitOps deployment.
 
 3. Kafka bootstrap servers, topic, group ID
 - Where to store:
-  - Helm values files if non-sensitive:
+  - GitHub Variables for pipeline-based deployments:
+    - KAFKA_BOOTSTRAP_SERVERS
+    - KAFKA_TOPIC
+    - KAFKA_GROUP_ID
+    - KAFKA_ENABLED
+  - Optional fallback in Helm values files:
     - helm/flask-kafka-app/values-dev.yaml
     - helm/flask-kafka-app/values-prod.yaml
 
@@ -106,6 +111,10 @@ Create these under GitHub repo Settings -> Secrets and variables -> Actions -> V
 5. HELM_RELEASE_NAME
 6. NODE_TYPE
 7. NODE_COUNT
+8. KAFKA_ENABLED
+9. KAFKA_BOOTSTRAP_SERVERS
+10. KAFKA_TOPIC
+11. KAFKA_GROUP_ID
 
 ## E) GitHub repository secrets to create
 

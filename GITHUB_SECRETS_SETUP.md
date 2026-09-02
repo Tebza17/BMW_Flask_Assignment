@@ -42,6 +42,10 @@ Output includes the IAM Role ARN. Copy it to GitHub Secret `AWS_ROLE_TO_ASSUME`.
 5. `HELM_RELEASE_NAME` (example: `flask-kafka-app`)
 6. `NODE_TYPE` (example: `t3.medium`)
 7. `NODE_COUNT` (example: `2`)
+8. `KAFKA_ENABLED` (example: `true`)
+9. `KAFKA_BOOTSTRAP_SERVERS` (example: `kafka.kafka.svc.cluster.local:9092`)
+10. `KAFKA_TOPIC` (example: `events`)
+11. `KAFKA_GROUP_ID` (example: `flask-kafka-app-prod`)
 
 ## Why this earns points
 
@@ -71,4 +75,8 @@ gh variable set K8S_NAMESPACE --body "assessment"
 gh variable set HELM_RELEASE_NAME --body "flask-kafka-app"
 gh variable set NODE_TYPE --body "t3.medium"
 gh variable set NODE_COUNT --body "2"
+gh variable set KAFKA_ENABLED --body "true"
+gh variable set KAFKA_BOOTSTRAP_SERVERS --body "kafka.kafka.svc.cluster.local:9092"
+gh variable set KAFKA_TOPIC --body "events"
+gh variable set KAFKA_GROUP_ID --body "flask-kafka-app-prod"
 ```

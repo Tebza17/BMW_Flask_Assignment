@@ -274,6 +274,12 @@ Set:
 
 If credentials are needed, place them in secrets.
 
+For pipeline-first deployments in this repo:
+
+- Put `KAFKA_ENABLED`, `KAFKA_BOOTSTRAP_SERVERS`, `KAFKA_TOPIC`, and `KAFKA_GROUP_ID` in GitHub Variables.
+- Put `KAFKA_USERNAME` and `KAFKA_PASSWORD` in GitHub Secrets.
+- Workflow `.github/workflows/deploy-eks-gitops.yaml` injects them into Helm at deploy time.
+
 ---
 
 ## 5. GitOps approach (important for assessment)

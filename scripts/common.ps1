@@ -40,7 +40,18 @@ function Require-Env([string]$name) {
 }
 
 function Get-EcrRepoUri {
-    $accountId = Require-Env "AWS_ACCOUNT_ID"
+    $accountId = (Get-Item "Env:AWS_ACCOUNT_ID" -ErrorAction SilentlyContinue).Value
+    if ([string]::IsNullOrWhiteSpace($accountId)) {
+        if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
+            throw "AWS_ACCOUNT_ID not set and aws CLI is not installed to auto-detect it."
+        }
+
+        $accountId = (aws sts get-caller-identity --query Account --output text).Trim()
+        if ([string]::IsNullOrWhiteSpace($accountId)) {
+            throw "Failed to detect AWS account ID from STS and AWS_ACCOUNT_ID is not set."
+        }
+    }
+
     $region = Require-Env "AWS_REGION"
     $repoName = Require-Env "ECR_REPOSITORY_NAME"
     return "$accountId.dkr.ecr.$region.amazonaws.com/$repoName"

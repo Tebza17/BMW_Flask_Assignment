@@ -1,0 +1,132 @@
+name: deploy-eks-gitops
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: "Target config: dev or prod"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+      create_cluster:
+        description: "Create EKS cluster from template before deploy"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+  ECR_REPOSITORY_NAME: ${{ vars.ECR_REPOSITORY_NAME }}
+  K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+  HELM_RELEASE_NAME: ${{ vars.HELM_RELEASE_NAME }}
+  NODE_TYPE: ${{ vars.NODE_TYPE }}
+  NODE_COUNT: ${{ vars.NODE_COUNT }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-eks-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate required variables
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$CLUSTER_NAME"
+          test -n "$ECR_REPOSITORY_NAME"
+          test -n "$K8S_NAMESPACE"
+          test -n "$HELM_RELEASE_NAME"
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install eksctl
+        run: |
+          curl --silent --location "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
+
+      - name: Create cluster config file
+        run: |
+          cp infra/eksctl/cluster-config.yaml.tpl infra/eksctl/cluster-config.generated.yaml
+          sed -i "s/__CLUSTER_NAME__/${CLUSTER_NAME}/g" infra/eksctl/cluster-config.generated.yaml
+          sed -i "s/__AWS_REGION__/${AWS_REGION}/g" infra/eksctl/cluster-config.generated.yaml
+          sed -i "s/__NODE_TYPE__/${NODE_TYPE:-t3.medium}/g" infra/eksctl/cluster-config.generated.yaml
+          sed -i "s/__NODE_COUNT__/${NODE_COUNT:-2}/g" infra/eksctl/cluster-config.generated.yaml
+
+      - name: Create EKS cluster (optional)
+        if: ${{ inputs.create_cluster == true }}
+        run: |
+          eksctl create cluster -f infra/eksctl/cluster-config.generated.yaml
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          kubectl get nodes
+
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY_NAME" --region "$AWS_REGION" || aws ecr create-repository --repository-name "$ECR_REPOSITORY_NAME" --region "$AWS_REGION"
+
+      - name: Resolve account and image URI
+        id: image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          IMAGE_TAG=${GITHUB_SHA::7}
+          IMAGE_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY_NAME"
+          echo "account_id=$ACCOUNT_ID" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_repo=$IMAGE_REPO" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          IMAGE_REPO: ${{ steps.image.outputs.image_repo }}
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
+        run: |
+          docker build -t "$IMAGE_REPO:$IMAGE_TAG" app/
+          docker push "$IMAGE_REPO:$IMAGE_TAG"
+
+      - name: Deploy Helm chart
+        env:
+          IMAGE_REPO: ${{ steps.image.outputs.image_repo }}
+          IMAGE_TAG: ${{ steps.image.outputs.image_tag }}
+          KAFKA_USERNAME: ${{ secrets.KAFKA_USERNAME }}
+          KAFKA_PASSWORD: ${{ secrets.KAFKA_PASSWORD }}
+        run: |
+          VALUES_FILE="helm/flask-kafka-app/values-${{ inputs.deploy_environment }}.yaml"
+          helm lint helm/flask-kafka-app
+          helm upgrade --install "$HELM_RELEASE_NAME" helm/flask-kafka-app \
+            --namespace "$K8S_NAMESPACE" \
+            --create-namespace \
+            -f "$VALUES_FILE" \
+            --set image.repository="$IMAGE_REPO" \
+            --set image.tag="$IMAGE_TAG" \
+            --set-string secrets.KAFKA_USERNAME="$KAFKA_USERNAME" \
+            --set-string secrets.KAFKA_PASSWORD="$KAFKA_PASSWORD"
+
+      - name: Verify rollout and service
+        run: |
+          kubectl rollout status deployment/${HELM_RELEASE_NAME}-flask-kafka-app -n "$K8S_NAMESPACE" --timeout=240s
+          kubectl get svc -n "$K8S_NAMESPACE"

@@ -46,6 +46,8 @@ Create these accounts/access first.
 7. Python 3.11+ (optional, for local app testing)
 8. Terraform (optional bonus)
 
+If AWS CLI is not installed yet, you can still deploy through GitHub Actions using `GITHUB_SECRETS_SETUP.md`.
+
 ## 2.3 AWS permissions you need
 
 Use an IAM user (or role) with permission for:
@@ -81,6 +83,7 @@ Use scripts and declarative files as your default path:
 3. `scripts/*.ps1` runs repeatable CLI automation
 4. Helm values and templates are versioned in Git
 5. Argo CD manifest points to your repo for continuous reconciliation
+6. GitHub Secrets/Variables keep credentials and runtime config out of code
 
 Avoid AWS console manual creation during the demo unless you are explicitly explaining fallback steps.
 
@@ -108,6 +111,15 @@ Reliability features included:
 ---
 
 ## 4. Step-by-step execution
+
+## Fastest secure path (recommended)
+
+1. Configure secrets and variables in `GITHUB_SECRETS_SETUP.md`
+2. Trigger workflow `.github/workflows/deploy-eks-gitops.yaml`
+3. Use `create_cluster=true` on first run
+4. Use `create_cluster=false` for later updates
+
+This path is ideal when your local machine is missing AWS CLI.
 
 Preferred execution path for this assignment:
 

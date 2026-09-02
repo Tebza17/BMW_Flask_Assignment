@@ -13,6 +13,7 @@ This folder contains a complete starter solution for your assessment:
 ## Start Here
 
 Read **ASSIGNMENT_AWS_EKS_GUIDE.md** from top to bottom. It is written to teach you each step and the reasoning behind it.
+Then configure pipeline access in **GITHUB_SECRETS_SETUP.md**.
 
 ## GitOps-First Quick Start (No ClickOps)
 
@@ -43,6 +44,13 @@ This script renders `gitops/argocd/application-prod.generated.yaml` from `gitops
 ./scripts/90-cleanup.ps1
 ```
 
+## Pipeline-First Path (No Local AWS CLI Required for Deploy)
+
+1. Set GitHub Secrets and Variables using `GITHUB_SECRETS_SETUP.md`.
+2. Run GitHub Actions workflow `deploy-eks-gitops`.
+3. Use `create_cluster=true` for first run, then `false`.
+4. Select `deploy_environment` as `dev` or `prod`.
+
 ## Folder Layout
 
 - `app/` - Flask application source
@@ -51,6 +59,7 @@ This script renders `gitops/argocd/application-prod.generated.yaml` from `gitops
 - `scripts/` - Scripted operational workflow (bootstrap, deploy, verify, cleanup)
 - `infra/eksctl/` - Declarative EKS cluster configuration template
 - `terraform/` - Optional IaC (bonus)
+- `.github/workflows/deploy-eks-gitops.yaml` - Secure OIDC deployment workflow
 
 ## Outcome
 

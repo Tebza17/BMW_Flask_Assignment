@@ -10,10 +10,15 @@ Require-Command helm
 
 $region = Require-Env "AWS_REGION"
 $repoName = Require-Env "ECR_REPOSITORY_NAME"
-$accountId = Require-Env "AWS_ACCOUNT_ID"
+$accountId = (Get-Item "Env:AWS_ACCOUNT_ID" -ErrorAction SilentlyContinue).Value
 
 Write-Host "Verifying AWS identity..."
-aws sts get-caller-identity | Out-Host
+$caller = aws sts get-caller-identity | ConvertFrom-Json
+$caller | ConvertTo-Json | Out-Host
+
+if ([string]::IsNullOrWhiteSpace($accountId)) {
+    $accountId = $caller.Account
+}
 
 Write-Host "Ensuring ECR repository exists..."
 $repoExists = $true

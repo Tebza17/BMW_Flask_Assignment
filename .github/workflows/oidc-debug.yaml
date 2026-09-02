@@ -1,0 +1,52 @@
+name: oidc-debug
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  debug-oidc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print OIDC token claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW_RESPONSE=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
+          TOKEN=$(echo "$RAW_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')
+          export TOKEN
+
+          PAYLOAD=$(python3 - <<'PY'
+import base64, json, os
+
+token = os.environ["TOKEN"]
+parts = token.split('.')
+if len(parts) < 2:
+    raise SystemExit("Invalid OIDC token format")
+payload = parts[1]
+padding = '=' * (-len(payload) % 4)
+decoded = base64.urlsafe_b64decode(payload + padding).decode('utf-8')
+print(decoded)
+PY
+)
+
+          echo "OIDC issuer and key claims:"
+          echo "$PAYLOAD" | python3 - <<'PY'
+import json,sys
+obj=json.load(sys.stdin)
+for key in ["iss","aud","sub","job_workflow_ref","repository","repository_owner","ref","sha","actor"]:
+    print(f"{key}: {obj.get(key)}")
+PY
+
+      - name: Attempt STS assume role via action
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-session-name: github-actions-oidc-debug
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify caller identity
+        run: aws sts get-caller-identity

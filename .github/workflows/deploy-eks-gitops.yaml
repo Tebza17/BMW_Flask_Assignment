@@ -77,10 +77,55 @@ jobs:
           sed -i "s/__NODE_TYPE__/${NODE_TYPE:-t3.medium}/g" infra/eksctl/cluster-config.generated.yaml
           sed -i "s/__NODE_COUNT__/${NODE_COUNT:-2}/g" infra/eksctl/cluster-config.generated.yaml
 
+      - name: Preflight node type availability (optional)
+        if: ${{ inputs.create_cluster == true }}
+        run: |
+          echo "Checking instance type availability for ${NODE_TYPE:-t3.medium} in ${AWS_REGION}"
+          aws ec2 describe-instance-type-offerings \
+            --region "$AWS_REGION" \
+            --location-type availability-zone \
+            --filters Name=instance-type,Values="${NODE_TYPE:-t3.medium}" \
+            --query 'InstanceTypeOfferings[].Location' \
+            --output text || true
+
       - name: Create EKS cluster (optional)
         if: ${{ inputs.create_cluster == true }}
         run: |
+          set +e
           eksctl create cluster -f infra/eksctl/cluster-config.generated.yaml
+          EXIT_CODE=$?
+          set -e
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "eksctl cluster creation failed, collecting diagnostics..."
+            eksctl utils describe-stacks --region "$AWS_REGION" --cluster "$CLUSTER_NAME" || true
+
+            STACKS=$(aws cloudformation list-stacks \
+              --region "$AWS_REGION" \
+              --stack-status-filter CREATE_IN_PROGRESS CREATE_FAILED CREATE_COMPLETE ROLLBACK_IN_PROGRESS ROLLBACK_FAILED ROLLBACK_COMPLETE DELETE_IN_PROGRESS DELETE_FAILED UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE UPDATE_ROLLBACK_FAILED \
+              --query "StackSummaries[?contains(StackName, 'eksctl-${CLUSTER_NAME}')].StackName" \
+              --output text)
+
+            if [ -n "$STACKS" ]; then
+              echo "Related CloudFormation stacks:"
+              for STACK in $STACKS; do
+                aws cloudformation describe-stacks \
+                  --region "$AWS_REGION" \
+                  --stack-name "$STACK" \
+                  --query 'Stacks[0].[StackName,StackStatus,StackStatusReason]' \
+                  --output table || true
+                echo "---- Recent events for $STACK ----"
+                aws cloudformation describe-stack-events \
+                  --region "$AWS_REGION" \
+                  --stack-name "$STACK" \
+                  --max-items 40 \
+                  --query 'StackEvents[].[Timestamp,LogicalResourceId,ResourceStatus,ResourceStatusReason]' \
+                  --output table || true
+              done
+            fi
+          fi
+
+          exit "$EXIT_CODE"
 
       - name: Update kubeconfig
         run: |

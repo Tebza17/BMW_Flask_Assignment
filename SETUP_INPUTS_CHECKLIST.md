@@ -121,10 +121,13 @@ Keep policy JSON in repo for review and audit (good GitOps practice):
 
 1. iam/github-oidc-trust-policy.json
 2. iam/github-actions-eks-deployer-permissions.json
+3. iam/oidc-role-stack.yaml
+4. iam/create-oidc-role-cloudshell.sh
 
 Important:
 - These policy JSON files should contain no private keys.
 - They are safe to commit.
+- The CloudFormation template/script are also safe to commit and are intended for automation.
 
 ## G) What never goes in git
 

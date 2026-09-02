@@ -12,6 +12,19 @@ Before starting, review:
 
 Use short-lived credentials with a role trust relationship between AWS IAM and GitHub Actions.
 
+## Auto-create role in AWS CloudShell (no local AWS CLI required)
+
+Run these commands in AWS CloudShell:
+
+```bash
+git clone https://github.com/Tebza17/BMW_Flask_Assignment.git
+cd BMW_Flask_Assignment
+chmod +x iam/create-oidc-role-cloudshell.sh
+./iam/create-oidc-role-cloudshell.sh us-east-1 Tebza17 BMW_Flask_Assignment main github-actions-eks-deployer
+```
+
+Output includes the IAM Role ARN. Copy it to GitHub Secret `AWS_ROLE_TO_ASSUME`.
+
 ## Repository Secrets to create
 
 1. `AWS_ROLE_TO_ASSUME`

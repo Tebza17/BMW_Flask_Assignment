@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: GitHub OIDC provider and IAM role for GitHub Actions EKS deployments
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: Tebza17
+    Description: GitHub user or organization
+  GitHubRepo:
+    Type: String
+    Default: BMW_Flask_Assignment
+    Description: GitHub repository name
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: Branch allowed to assume the role
+  RoleName:
+    Type: String
+    Default: github-actions-eks-deployer
+    Description: IAM role name for GitHub Actions
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ''
+    Description: Optional existing GitHub OIDC provider ARN. Leave empty to create one.
+
+Conditions:
+  CreateOidcProvider: !Equals [!Ref ExistingOidcProviderArn, '']
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - ffffffffffffffffffffffffffffffffffffffff
+
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If [CreateOidcProvider, !Ref GitHubOidcProvider, !Ref ExistingOidcProviderArn]
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}
+
+  GitHubActionsEksPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${RoleName}-policy
+      Description: Permissions for GitHub Actions to build/push image and deploy to EKS
+      Roles:
+        - !Ref GitHubActionsRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ECRAccess
+            Effect: Allow
+            Action:
+              - ecr:GetAuthorizationToken
+              - ecr:BatchCheckLayerAvailability
+              - ecr:CompleteLayerUpload
+              - ecr:InitiateLayerUpload
+              - ecr:PutImage
+              - ecr:UploadLayerPart
+              - ecr:DescribeRepositories
+              - ecr:CreateRepository
+            Resource: '*'
+          - Sid: EKSReadAccess
+            Effect: Allow
+            Action:
+              - eks:DescribeCluster
+              - eks:ListClusters
+            Resource: '*'
+          - Sid: ClusterProvisioningForAssessment
+            Effect: Allow
+            Action:
+              - eks:*
+              - ec2:*
+              - iam:*
+              - cloudformation:*
+              - autoscaling:*
+              - elasticloadbalancing:*
+              - logs:*
+              - kms:DescribeKey
+              - kms:CreateGrant
+              - kms:ListAliases
+              - ssm:GetParameter
+            Resource: '*'
+
+Outputs:
+  GitHubActionsRoleArn:
+    Description: Set this in GitHub secret AWS_ROLE_TO_ASSUME
+    Value: !GetAtt GitHubActionsRole.Arn
+
+  OidcProviderArn:
+    Description: GitHub OIDC provider ARN in this account
+    Value: !If [CreateOidcProvider, !Ref GitHubOidcProvider, !Ref ExistingOidcProviderArn]

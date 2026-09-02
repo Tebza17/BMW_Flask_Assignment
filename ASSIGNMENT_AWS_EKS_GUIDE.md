@@ -119,6 +119,12 @@ Reliability features included:
 3. Use `create_cluster=true` on first run
 4. Use `create_cluster=false` for later updates
 
+If IAM OIDC role is not created yet, auto-create it from AWS CloudShell using:
+
+```bash
+./iam/create-oidc-role-cloudshell.sh us-east-1 Tebza17 BMW_Flask_Assignment main github-actions-eks-deployer
+```
+
 This path is ideal when your local machine is missing AWS CLI.
 
 Preferred execution path for this assignment:

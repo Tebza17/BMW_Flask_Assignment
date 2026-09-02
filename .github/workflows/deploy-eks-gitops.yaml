@@ -88,8 +88,58 @@ jobs:
             --query 'InstanceTypeOfferings[].Location' \
             --output text || true
 
-      - name: Create EKS cluster (optional)
+      - name: Determine cluster create strategy (optional)
         if: ${{ inputs.create_cluster == true }}
+        id: cluster_state
+        run: |
+          STACK_NAME="eksctl-${CLUSTER_NAME}-cluster"
+          STACK_STATUS=$(aws cloudformation describe-stacks \
+            --region "$AWS_REGION" \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || true)
+
+          CLUSTER_STATUS=""
+          if aws eks describe-cluster --region "$AWS_REGION" --name "$CLUSTER_NAME" >/dev/null 2>&1; then
+            CLUSTER_STATUS=$(aws eks describe-cluster \
+              --region "$AWS_REGION" \
+              --name "$CLUSTER_NAME" \
+              --query 'cluster.status' \
+              --output text)
+          fi
+
+          echo "Detected cluster status: ${CLUSTER_STATUS:-not-found}"
+          echo "Detected stack status: ${STACK_STATUS:-not-found}"
+
+          if [ "$CLUSTER_STATUS" = "ACTIVE" ] || [ "$CLUSTER_STATUS" = "CREATING" ] || [ "$CLUSTER_STATUS" = "UPDATING" ]; then
+            echo "Cluster already exists or is in progress; skipping create step."
+            echo "create_required=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -n "$STACK_STATUS" ] && [ "$STACK_STATUS" != "None" ]; then
+            echo "No active cluster found, but cluster stack exists; cleaning stale eksctl stacks."
+            STACKS=$(aws cloudformation list-stacks \
+              --region "$AWS_REGION" \
+              --stack-status-filter CREATE_IN_PROGRESS CREATE_FAILED CREATE_COMPLETE ROLLBACK_IN_PROGRESS ROLLBACK_FAILED ROLLBACK_COMPLETE DELETE_IN_PROGRESS DELETE_FAILED UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE UPDATE_ROLLBACK_FAILED \
+              --query "StackSummaries[?contains(StackName, 'eksctl-${CLUSTER_NAME}')].StackName" \
+              --output text)
+
+            for STACK in $STACKS; do
+              echo "Deleting stale stack: $STACK"
+              aws cloudformation delete-stack --region "$AWS_REGION" --stack-name "$STACK"
+            done
+
+            for STACK in $STACKS; do
+              echo "Waiting for deletion: $STACK"
+              aws cloudformation wait stack-delete-complete --region "$AWS_REGION" --stack-name "$STACK"
+            done
+          fi
+
+          echo "create_required=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create EKS cluster (optional)
+        if: ${{ inputs.create_cluster == true && steps.cluster_state.outputs.create_required == 'true' }}
         run: |
           set +e
           eksctl create cluster -f infra/eksctl/cluster-config.generated.yaml

@@ -1,0 +1,47 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECRAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart",
+        "ecr:DescribeRepositories",
+        "ecr:CreateRepository"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EKSDescribeAndUpdateKubeconfig",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EksctlClusterProvisioning",
+      "Effect": "Allow",
+      "Action": [
+        "eks:*",
+        "ec2:*",
+        "iam:*",
+        "cloudformation:*",
+        "autoscaling:*",
+        "elasticloadbalancing:*",
+        "logs:*",
+        "kms:DescribeKey",
+        "kms:CreateGrant",
+        "kms:ListAliases",
+        "ssm:GetParameter"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

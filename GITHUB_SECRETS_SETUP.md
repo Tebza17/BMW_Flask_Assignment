@@ -2,6 +2,12 @@
 
 This project supports secure deployment from GitHub Actions without storing AWS credentials in repository files.
 
+Before starting, review:
+
+1. `SETUP_INPUTS_CHECKLIST.md`
+2. `iam/github-oidc-trust-policy.json`
+3. `iam/github-actions-eks-deployer-permissions.json`
+
 ## Recommended security model: OIDC (best practice)
 
 Use short-lived credentials with a role trust relationship between AWS IAM and GitHub Actions.

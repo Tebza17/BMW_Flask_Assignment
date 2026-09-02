@@ -245,5 +245,25 @@ jobs:
 
       - name: Verify rollout and service
         run: |
+          set +e
           kubectl rollout status deployment/${HELM_RELEASE_NAME}-flask-kafka-app -n "$K8S_NAMESPACE" --timeout=240s
+          ROLLOUT_EXIT=$?
+          set -e
+
+          if [ "$ROLLOUT_EXIT" -ne 0 ]; then
+            echo "Rollout failed. Collecting Kubernetes diagnostics..."
+            kubectl get all -n "$K8S_NAMESPACE" -o wide || true
+            kubectl get events -n "$K8S_NAMESPACE" --sort-by=.metadata.creationTimestamp | tail -n 80 || true
+            kubectl describe deployment/${HELM_RELEASE_NAME}-flask-kafka-app -n "$K8S_NAMESPACE" || true
+
+            PODS=$(kubectl get pods -n "$K8S_NAMESPACE" -l app.kubernetes.io/instance="$HELM_RELEASE_NAME" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || true)
+            for POD in $PODS; do
+              echo "---- describe pod: $POD ----"
+              kubectl describe pod "$POD" -n "$K8S_NAMESPACE" || true
+              echo "---- logs pod: $POD ----"
+              kubectl logs "$POD" -n "$K8S_NAMESPACE" --all-containers --tail=200 || true
+            done
+          fi
+
+          exit "$ROLLOUT_EXIT"
           kubectl get svc -n "$K8S_NAMESPACE"

@@ -20,26 +20,26 @@ jobs:
           export TOKEN
 
           PAYLOAD=$(python3 - <<'PY'
-import base64, json, os
+          import base64, json, os
 
-token = os.environ["TOKEN"]
-parts = token.split('.')
-if len(parts) < 2:
-    raise SystemExit("Invalid OIDC token format")
-payload = parts[1]
-padding = '=' * (-len(payload) % 4)
-decoded = base64.urlsafe_b64decode(payload + padding).decode('utf-8')
-print(decoded)
-PY
-)
+          token = os.environ["TOKEN"]
+          parts = token.split('.')
+          if len(parts) < 2:
+            raise SystemExit("Invalid OIDC token format")
+          payload = parts[1]
+          padding = '=' * (-len(payload) % 4)
+          decoded = base64.urlsafe_b64decode(payload + padding).decode('utf-8')
+          print(decoded)
+          PY
+          )
 
           echo "OIDC issuer and key claims:"
           echo "$PAYLOAD" | python3 - <<'PY'
-import json,sys
-obj=json.load(sys.stdin)
-for key in ["iss","aud","sub","job_workflow_ref","repository","repository_owner","ref","sha","actor"]:
-    print(f"{key}: {obj.get(key)}")
-PY
+          import json,sys
+          obj=json.load(sys.stdin)
+          for key in ["iss","aud","sub","job_workflow_ref","repository","repository_owner","ref","sha","actor"]:
+            print(f"{key}: {obj.get(key)}")
+          PY
 
       - name: Attempt STS assume role via action
         uses: aws-actions/configure-aws-credentials@v4

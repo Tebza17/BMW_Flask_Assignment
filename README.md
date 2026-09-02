@@ -14,11 +14,42 @@ This folder contains a complete starter solution for your assessment:
 
 Read **ASSIGNMENT_AWS_EKS_GUIDE.md** from top to bottom. It is written to teach you each step and the reasoning behind it.
 
+## GitOps-First Quick Start (No ClickOps)
+
+1. Copy `scripts/config.env.example` to `scripts/config.env` and set your AWS values.
+2. Run end-to-end automation:
+
+```powershell
+./scripts/run-all.ps1
+```
+
+3. Optional: install Argo CD and apply GitOps app manifest:
+
+```powershell
+./scripts/60-install-argocd-and-app.ps1
+```
+
+This script renders `gitops/argocd/application-prod.generated.yaml` from `gitops/argocd/application-prod.yaml.tpl` using `GIT_REPO_URL` from `scripts/config.env`.
+
+4. Verify endpoint:
+
+```powershell
+./scripts/50-verify.ps1
+```
+
+5. Cleanup:
+
+```powershell
+./scripts/90-cleanup.ps1
+```
+
 ## Folder Layout
 
 - `app/` - Flask application source
 - `helm/flask-kafka-app/` - Helm chart
 - `gitops/argocd/` - GitOps manifest example
+- `scripts/` - Scripted operational workflow (bootstrap, deploy, verify, cleanup)
+- `infra/eksctl/` - Declarative EKS cluster configuration template
 - `terraform/` - Optional IaC (bonus)
 
 ## Outcome

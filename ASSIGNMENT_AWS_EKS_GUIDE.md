@@ -72,6 +72,18 @@ Verify:
 aws sts get-caller-identity
 ```
 
+## 2.5 GitOps, not ClickOps (how to earn points)
+
+Use scripts and declarative files as your default path:
+
+1. `scripts/config.env` stores non-secret deployment parameters
+2. `infra/eksctl/cluster-config.yaml.tpl` defines cluster shape in code
+3. `scripts/*.ps1` runs repeatable CLI automation
+4. Helm values and templates are versioned in Git
+5. Argo CD manifest points to your repo for continuous reconciliation
+
+Avoid AWS console manual creation during the demo unless you are explicitly explaining fallback steps.
+
 ---
 
 ## 3. Architecture you will explain in interview
@@ -97,6 +109,18 @@ Reliability features included:
 
 ## 4. Step-by-step execution
 
+Preferred execution path for this assignment:
+
+```powershell
+Copy-Item scripts/config.env.example scripts/config.env
+# edit scripts/config.env with your values
+./scripts/run-all.ps1
+./scripts/60-install-argocd-and-app.ps1
+./scripts/50-verify.ps1
+```
+
+Manual commands remain below for learning and troubleshooting.
+
 ## Step 1: Create git repository
 
 ```bash
@@ -114,6 +138,8 @@ git push -u origin main
 ```
 
 This satisfies the requirement to share a viewable link.
+
+Also commit automation scripts and infra templates; this demonstrates GitOps maturity.
 
 ## Step 2: Create ECR repository
 
@@ -159,6 +185,14 @@ Use `eksctl` (fast for assessment):
 eksctl create cluster --name devops-assessment-eks --region us-east-1 --nodes 2 --node-type t3.medium --managed
 ```
 
+GitOps-friendly alternative used in this repo:
+
+```powershell
+./scripts/30-create-cluster.ps1
+```
+
+This generates `infra/eksctl/cluster-config.generated.yaml` from `infra/eksctl/cluster-config.yaml.tpl` so cluster shape stays codified.
+
 Update kubeconfig:
 
 ```bash
@@ -173,6 +207,12 @@ From `helm/flask-kafka-app`:
 ```bash
 helm lint .
 helm upgrade --install flask-kafka-app . -n assessment --create-namespace -f values-dev.yaml
+```
+
+Scripted alternative used in this repo:
+
+```powershell
+./scripts/40-deploy-helm.ps1
 ```
 
 Check deployment:
@@ -231,6 +271,18 @@ Recommended flow:
 
 This repo includes an Argo CD Application example in `gitops/argocd/application-prod.yaml`.
 Set its `repoURL` to `https://github.com/Tebza17/BMW_Flask_Assignment.git`.
+
+Script-first approach in this repo:
+
+1. Set `GIT_REPO_URL` in `scripts/config.env`
+2. Render Application manifest from template with `./scripts/61-render-argocd-app.ps1`
+3. Install/apply with `./scripts/60-install-argocd-and-app.ps1`
+
+Script to install Argo CD and apply app manifest:
+
+```powershell
+./scripts/60-install-argocd-and-app.ps1
+```
 
 Even if you deploy manually in interview prep, explain how GitOps controller would continuously reconcile desired state from Git.
 
@@ -313,6 +365,12 @@ Delete ECR repo if needed:
 
 ```bash
 aws ecr delete-repository --repository-name flask-kafka-app --force
+```
+
+Scripted cleanup:
+
+```powershell
+./scripts/90-cleanup.ps1
 ```
 
 ---

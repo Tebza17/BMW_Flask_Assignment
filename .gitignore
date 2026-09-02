@@ -9,6 +9,11 @@ __pycache__/
 *.tfstate.*
 .terraform.lock.hcl
 
+# Local script config and generated cluster config
+scripts/config.env
+infra/eksctl/cluster-config.generated.yaml
+gitops/argocd/application-prod.generated.yaml
+
 # OS/editor
 .DS_Store
 Thumbs.db

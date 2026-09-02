@@ -51,6 +51,8 @@ This script renders `gitops/argocd/application-prod.generated.yaml` from `gitops
 3. Use `create_cluster=true` for first run, then `false`.
 4. Select `deploy_environment` as `dev` or `prod`.
 
+If CloudShell is unavailable, use local PowerShell bootstrap: `iam/create-oidc-role-local.ps1`.
+
 ## Folder Layout
 
 - `app/` - Flask application source

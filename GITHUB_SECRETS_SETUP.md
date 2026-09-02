@@ -25,6 +25,32 @@ chmod +x iam/create-oidc-role-cloudshell.sh
 
 Output includes the IAM Role ARN. Copy it to GitHub Secret `AWS_ROLE_TO_ASSUME`.
 
+## No CloudShell path (local machine)
+
+If CloudShell is unavailable, run the same setup from your local machine.
+
+Prerequisites:
+
+1. AWS CLI v2 installed
+2. Auth configured (`aws configure` or SSO profile)
+3. Access to create/update IAM and CloudFormation resources
+
+Windows PowerShell:
+
+```powershell
+Set-Location BMW_Flask_Assignment
+./iam/create-oidc-role-local.ps1 -Region eu-west-1 -GitHubOrg Tebza17 -GitHubRepo BMW_Flask_Assignment -GitHubBranch main -RoleName github-actions-eks-deployer
+```
+
+macOS/Linux bash:
+
+```bash
+cd BMW_Flask_Assignment
+./iam/create-oidc-role-cloudshell.sh eu-west-1 Tebza17 BMW_Flask_Assignment main github-actions-eks-deployer
+```
+
+If you cannot run CLI at all, use IAM Console to update only the role trust policy with the JSON in `iam/github-oidc-trust-policy.json` (replace `<AWS_ACCOUNT_ID>`).
+
 ## OIDC trust troubleshooting (important)
 
 Some GitHub accounts now emit a `sub` claim with numeric IDs in the owner and repo segments, for example:

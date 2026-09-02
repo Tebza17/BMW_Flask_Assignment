@@ -265,5 +265,5 @@ jobs:
             done
           fi
 
-          exit "$ROLLOUT_EXIT"
           kubectl get svc -n "$K8S_NAMESPACE"
+          exit "$ROLLOUT_EXIT"

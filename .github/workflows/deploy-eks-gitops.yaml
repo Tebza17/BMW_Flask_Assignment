@@ -221,6 +221,40 @@ jobs:
                 echo "Nodegroups not visible yet after create (attempt ${attempt}/10), retrying in 10s..."
                 sleep 10
               done
+
+              if [ -z "$NODEGROUPS" ] || [ "$NODEGROUPS" = "None" ]; then
+                echo "No nodegroups visible after create attempt. Cleaning stale ROLLBACK_COMPLETE nodegroup stacks and retrying once..."
+                STALE_NG_STACKS=$(aws cloudformation list-stacks \
+                  --region "$AWS_REGION" \
+                  --stack-status-filter ROLLBACK_COMPLETE \
+                  --query "StackSummaries[?contains(StackName, 'eksctl-${CLUSTER_NAME}-nodegroup')].StackName" \
+                  --output text)
+
+                for STACK in $STALE_NG_STACKS; do
+                  echo "Deleting stale nodegroup stack: $STACK"
+                  aws cloudformation delete-stack --region "$AWS_REGION" --stack-name "$STACK" || true
+                done
+
+                for STACK in $STALE_NG_STACKS; do
+                  echo "Waiting for stale nodegroup stack deletion: $STACK"
+                  aws cloudformation wait stack-delete-complete --region "$AWS_REGION" --stack-name "$STACK" || true
+                done
+
+                eksctl create nodegroup --config-file infra/eksctl/cluster-config.generated.yaml || true
+
+                for attempt in {1..10}; do
+                  NODEGROUPS=$(aws eks list-nodegroups \
+                    --region "$AWS_REGION" \
+                    --cluster-name "$CLUSTER_NAME" \
+                    --query 'nodegroups' \
+                    --output text)
+                  if [ -n "$NODEGROUPS" ] && [ "$NODEGROUPS" != "None" ]; then
+                    break
+                  fi
+                  echo "Nodegroups still not visible after cleanup retry (attempt ${attempt}/10), retrying in 10s..."
+                  sleep 10
+                done
+              fi
             fi
 
             if [ -z "$NODEGROUPS" ] || [ "$NODEGROUPS" = "None" ]; then
@@ -248,6 +282,20 @@ jobs:
                   --query 'StackEvents[].[Timestamp,LogicalResourceId,ResourceStatus,ResourceStatusReason]' \
                   --output table || true
               done
+
+              ACCOUNT_BLOCKED=$(for STACK in $NG_STACKS; do
+                aws cloudformation describe-stack-events \
+                  --region "$AWS_REGION" \
+                  --stack-name "$STACK" \
+                  --query "StackEvents[?contains(ResourceStatusReason, 'not recognized as a valid account') || contains(ResourceStatusReason, 'Blocked - This account is currently blocked')].ResourceStatusReason" \
+                  --output text || true
+              done)
+
+              if [ -n "$ACCOUNT_BLOCKED" ] && [ "$ACCOUNT_BLOCKED" != "None" ]; then
+                echo "Detected AWS account restriction during node launch:"
+                echo "$ACCOUNT_BLOCKED"
+                echo "This is not a pipeline logic issue. Resolve AWS account verification/billing restrictions, then re-run the workflow."
+              fi
               exit 1
             fi
 

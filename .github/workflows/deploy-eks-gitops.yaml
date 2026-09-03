@@ -182,8 +182,7 @@ jobs:
           aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
           kubectl get nodes
 
-      - name: Reconcile nodegroup when cluster has no nodes (optional)
-        if: ${{ inputs.create_cluster == true }}
+      - name: Reconcile nodegroup when cluster has no nodes
         run: |
           NODE_COUNT_CURRENT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
 
@@ -207,7 +206,7 @@ jobs:
 
             if [ -z "$NODEGROUPS" ] || [ "$NODEGROUPS" = "None" ]; then
               echo "No nodegroups exist yet. Creating from cluster config..."
-              eksctl create nodegroup -f infra/eksctl/cluster-config.generated.yaml
+              eksctl create nodegroup --config-file infra/eksctl/cluster-config.generated.yaml
 
               NODEGROUPS=""
               for attempt in {1..10}; do
